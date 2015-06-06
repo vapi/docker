@@ -1,0 +1,99 @@
+FROM debian:jessie
+MAINTAINER Jono Wells <_@oj.io>
+
+ENV NGINX_VERSION 1.9.1-1~jessie
+ENV OPENRESTY_VERSION 1.7.10.1
+ENV DEBIAN_FRONTEND noninteractive
+
+ENV OPENRESTY_PREFIX /opt/openresty
+ENV NGINX_PREFIX /opt/openresty/nginx
+ENV VAR_PREFIX /var/nginx
+
+RUN \
+  apt-key adv --keyserver hkp://pgp.mit.edu:80 --recv-keys 573BFD6B3D8FBC641079A6ABABF5BD827BD9BF62 && \
+  echo "deb http://nginx.org/packages/mainline/debian/ jessie nginx" >> /etc/apt/sources.list && \
+  echo "deb-src http://nginx.org/packages/mainline/debian/ jessie nginx" >> /etc/apt/sources.list && \
+  apt-get update && \
+  apt-get upgrade -y && \
+  apt-get -y build-dep nginx && \
+  apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    git \
+    libgd2-xpm-dev \
+    libgeoip-dev \
+    libncurses5-dev \
+    libpcre3-dev \
+    libpq-dev \
+    libreadline-dev \
+    libssl-dev \
+    make \
+    perl \
+    procps \
+    wget \
+    vim && \
+  apt-get -q -y clean && \
+  rm -rf /var/lib/apt/lists/*
+
+# https://github.com/ficusio/openresty/blob/master/debian/Dockerfile
+RUN cd /root  && \
+  echo "==> Downloading OpenResty..." && \
+  curl -sSL http://openresty.org/download/ngx_openresty-${OPENRESTY_VERSION}.tar.gz | tar -xvz && \
+  echo "==> Configuring OpenResty..." && \
+  cd ngx_openresty-* && \
+  readonly NPROC=$(grep -c ^processor /proc/cpuinfo 2>/dev/null || 1) && \
+  echo "using upto $NPROC threads" && \
+  ./configure \
+   --prefix=$OPENRESTY_PREFIX \
+   --http-client-body-temp-path=$VAR_PREFIX/client_body_temp \
+   --http-proxy-temp-path=$VAR_PREFIX/proxy_temp \
+   --http-log-path=$VAR_PREFIX/access.log \
+   --error-log-path=$VAR_PREFIX/error.log \
+   --pid-path=$VAR_PREFIX/nginx.pid \
+   --lock-path=$VAR_PREFIX/nginx.lock \
+   --with-luajit \
+   --with-pcre-jit \
+   --with-ipv6 \
+   --with-http_addition_module \
+   --with-http_geoip_module \
+   --with-http_gzip_static_module \
+   --with-http_image_filter_module \
+   --with-http_postgres_module \
+   --with-http_realip_module \
+   --with-http_stub_status_module \
+   --with-http_ssl_module \
+   --with-http_sub_module \
+   --without-http_ssi_module \
+   --without-http_userid_module \
+   --without-http_fastcgi_module \
+   --without-http_uwsgi_module \
+   --without-http_scgi_module \
+   --without-http_memcached_module \
+   -j${NPROC} && \
+   echo "==> Building OpenResty..." && \
+   make -j${NPROC} && \
+   echo "==> Installing OpenResty..." && \
+   make install && \
+   echo "==> Finishing..." && \
+   ln -sf $NGINX_PREFIX/sbin/nginx /usr/local/bin/nginx && \
+   ln -sf $NGINX_PREFIX/sbin/nginx /usr/local/bin/openresty && \
+   ln -sf $OPENRESTY_PREFIX/bin/resty /usr/local/bin/resty && \
+   ln -sf $OPENRESTY_PREFIX/luajit/bin/luajit-* $OPENRESTY_PREFIX/luajit/bin/lua && \
+   ln -sf $OPENRESTY_PREFIX/luajit/bin/luajit-* /usr/local/bin/lua && \
+   rm -rf /root/ngx_openresty*
+
+# forward request and error logs to docker log collector
+RUN \
+  ln -sf /dev/stdout $VAR_PREFIX/access.log && \
+  ln -sf /dev/stderr $VAR_PREFIX/error.log
+
+VOLUME [ "/var/cache/nginx" ]
+
+EXPOSE 80 443
+
+WORKDIR $NGINX_PREFIX/
+
+ONBUILD RUN rm -rf conf/* html/*
+ONBUILD COPY nginx $NGINX_PREFIX/
+
+CMD ["nginx", "-g", "daemon off;"]
