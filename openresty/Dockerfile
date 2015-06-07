@@ -42,50 +42,57 @@ RUN cd /root  && \
   echo "==> Configuring OpenResty..." && \
   cd ngx_openresty-* && \
   readonly NPROC=$(grep -c ^processor /proc/cpuinfo 2>/dev/null || 1) && \
+  mkdir ${VAR_PREFIX} && \
   echo "using upto $NPROC threads" && \
   ./configure \
-   --prefix=$OPENRESTY_PREFIX \
-   --http-client-body-temp-path=$VAR_PREFIX/client_body_temp \
-   --http-proxy-temp-path=$VAR_PREFIX/proxy_temp \
-   --http-log-path=$VAR_PREFIX/access.log \
-   --error-log-path=$VAR_PREFIX/error.log \
-   --pid-path=$VAR_PREFIX/nginx.pid \
-   --lock-path=$VAR_PREFIX/nginx.lock \
-   --with-luajit \
-   --with-pcre-jit \
-   --with-ipv6 \
-   --with-http_addition_module \
-   --with-http_geoip_module \
-   --with-http_gzip_static_module \
-   --with-http_image_filter_module \
-   --with-http_postgres_module \
-   --with-http_realip_module \
-   --with-http_stub_status_module \
-   --with-http_ssl_module \
-   --with-http_sub_module \
-   --without-http_ssi_module \
-   --without-http_userid_module \
-   --without-http_fastcgi_module \
-   --without-http_uwsgi_module \
-   --without-http_scgi_module \
-   --without-http_memcached_module \
-   -j${NPROC} && \
-   echo "==> Building OpenResty..." && \
-   make -j${NPROC} && \
-   echo "==> Installing OpenResty..." && \
-   make install && \
-   echo "==> Finishing..." && \
-   ln -sf $NGINX_PREFIX/sbin/nginx /usr/local/bin/nginx && \
-   ln -sf $NGINX_PREFIX/sbin/nginx /usr/local/bin/openresty && \
-   ln -sf $OPENRESTY_PREFIX/bin/resty /usr/local/bin/resty && \
-   ln -sf $OPENRESTY_PREFIX/luajit/bin/luajit-* $OPENRESTY_PREFIX/luajit/bin/lua && \
-   ln -sf $OPENRESTY_PREFIX/luajit/bin/luajit-* /usr/local/bin/lua && \
-   rm -rf /root/ngx_openresty*
+    --prefix=$OPENRESTY_PREFIX \
+    --http-client-body-temp-path=$VAR_PREFIX/client_body_temp \
+    --http-proxy-temp-path=$VAR_PREFIX/proxy_temp \
+    --http-log-path=/var/log/nginx/access.log \
+    --error-log-path=/var/log/nginx/error.log \
+    --pid-path=/run/nginx.pid \
+    --lock-path=$VAR_PREFIX/nginx.lock \
+    --with-luajit \
+    --with-pcre-jit \
+    --with-ipv6 \
+    --with-http_addition_module \
+    --with-http_geoip_module \
+    --with-http_gzip_static_module \
+    --with-http_image_filter_module \
+    --with-http_postgres_module \
+    --with-http_realip_module \
+    --with-http_stub_status_module \
+    --with-http_ssl_module \
+    --with-http_sub_module \
+    --without-http_ssi_module \
+    --without-http_userid_module \
+    --without-http_fastcgi_module \
+    --without-http_uwsgi_module \
+    --without-http_scgi_module \
+    --without-http_memcached_module \
+    -j${NPROC} && \
+  echo "==> Building OpenResty..." && \
+  make -j${NPROC} && \
+  echo "==> Installing OpenResty..." && \
+  make install && \
+  echo "==> Finishing..." && \
+  ln -sf $NGINX_PREFIX/sbin/nginx /usr/local/bin/nginx && \
+  ln -sf $NGINX_PREFIX/sbin/nginx /usr/local/bin/openresty && \
+  ln -sf $OPENRESTY_PREFIX/bin/resty /usr/local/bin/resty && \
+  ln -sf $OPENRESTY_PREFIX/luajit/bin/luajit-* $OPENRESTY_PREFIX/luajit/bin/lua && \
+  ln -sf $OPENRESTY_PREFIX/luajit/bin/luajit-* /usr/local/bin/lua && \
+  ln -sf /dev/stdout /var/log/nginx/access.log && \
+  ln -sf /dev/stderr /var/log/nginx/error.log && \
+  rm -rf /root/ngx_openresty*
 
-# forward request and error logs to docker log collector
+# grab GeoLiteCity.dat
 RUN \
-  ln -sf /dev/stdout $VAR_PREFIX/access.log && \
-  ln -sf /dev/stderr $VAR_PREFIX/error.log
+  mkdir -p /usr/local/share/GeoIP && \
+  cd /usr/local/share/GeoIP && \
+  wget http://geolite.maxmind.com/download/geoip/database/GeoLiteCity.dat.gz && \
+  wget http://geolite.maxmind.com/download/geoip/database/GeoLiteCountry/GeoIP.dat.gz && \
+  gunzip GeoLiteCity.dat.gz && \
+  gunzip GeoIP.dat.gz
 
 VOLUME [ "/var/cache/nginx" ]
 
