@@ -52,20 +52,21 @@ RUN cd /root  && \
     --error-log-path=/var/log/nginx/error.log \
     --pid-path=/run/nginx.pid \
     --lock-path=$VAR_PREFIX/nginx.lock \
+    --with-ipv6 \
     --with-luajit \
     --with-pcre-jit \
-    --with-ipv6 \
     --with-http_addition_module \
     --with-http_geoip_module \
     --with-http_gzip_static_module \
     --with-http_image_filter_module \
     --with-http_postgres_module \
     --with-http_realip_module \
-    --with-http_stub_status_module \
+    --with-http_secure_link_module \
+    --with-http_spdy_module \
     --with-http_ssl_module \
+    --with-http_stub_status_module \
     --with-http_sub_module \
     --without-http_ssi_module \
-    --without-http_userid_module \
     --without-http_fastcgi_module \
     --without-http_uwsgi_module \
     --without-http_scgi_module \
